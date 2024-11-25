@@ -7,8 +7,9 @@ const {
   StringSelectMenuOptionBuilder,
   PermissionsBitField,
   Partials,
+  ButtonStyle
 } = require("discord.js");
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require("@discordjs/builders");
+const { EmbedBuilder, ButtonBuilder, ActionRowBuilder } = require("@discordjs/builders");
 const { token } = require("./private/config.json");
 
 // Create a new client instance
@@ -38,53 +39,89 @@ client.once(Events.ClientReady, (c) => {
 // Log in to Discord with your client's token
 client.login(token);
 
-//ping command
+//start of interactionCreate of main commands
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isCommand()) return;
 
   if (interaction.commandName === "intro") {
-    console.log(ButtonStyle);
-    await interaction.deferReply();
+    try {
+      // Immediately defer the reply to prevent "Unknown interaction" errors
+      await interaction.deferReply();
 
-    // Create the embed
-    const tournamentEmbed = new EmbedBuilder()
-      .addFields({ name: "Welcome to Jojo's Bizarre Collection!", value: " " })
-      .setColor([52, 152, 219]);
+      // Create the embed
+      const tournamentEmbed = new EmbedBuilder()
+        .addFields({ name: "Welcome to Jojo's Bizarre Collection!", value: " " })
+        .setColor([52, 152, 219]);
 
-    // Create the buttons
-    const confirm = new ButtonBuilder()
-      .setCustomId('confirm') // Correcting the customId usage
-      .setLabel('Click Me')   // Label for the button
-      .setStyle(ButtonStyle.Success); // Button style
+      // Create the buttons
+      const confirm = new ButtonBuilder()
+        .setCustomId("next-page")
+        .setLabel("Next")
+        .setEmoji({ name: "⏭️" }) 
+        .setStyle(ButtonStyle.Primary);
 
-    const cancel = new ButtonBuilder()
-      .setCustomId('cancel')  // Set unique custom ID
-      .setLabel('Cancel')     // Label for cancel button
-      .setStyle(ButtonStyle.Secondary); // Button style
+      const cancel = new ButtonBuilder()
+        .setCustomId("cancel")
+        .setLabel("Cancel")
+        .setEmoji({ name: "❌" }) 
+        .setStyle(ButtonStyle.Secondary);
 
-    // Add buttons to a row
-    const row = new ActionRowBuilder()
-      .addComponents(confirm, cancel);
+      // Add buttons to a row
+      const row = new ActionRowBuilder().addComponents(confirm, cancel);
 
-    // Send the response
-    await interaction.editReply({
-      content: `Welcome`,
-      components: [row],
-      embeds: [tournamentEmbed],
-    });
+      // Send the response with embed and buttons
+      await interaction.editReply({
+        content: "Welcome",
+        components: [row],
+        embeds: [tournamentEmbed],
+      });
+    } catch (error) {
+      console.error("Error during interaction:", error);
+      await interaction.editReply({
+        content: "An error occurred while processing your request.",
+        components: [],
+      });
+    }
   }
-  
-}); //end of interactionCreate of main commands
+
+  if (interaction.isButton()) {
+    const buttonId = interaction.customId;
+
+    // Modify the existing row and disable buttons after click
+    const updatedRow = interaction.message.components[0].components.map((button) =>
+      button.setDisabled(true) // Disable the clicked button and others
+    );
+
+    // Handle the cancel button click
+    if (buttonId === "cancel") {
+      await interaction.update({
+        content: "The command has been canceled.",
+        components: [new ActionRowBuilder().addComponents(updatedRow)],
+      });
+    }
+    // Handle the next-page button click
+    else if (buttonId === "next-page") {
+      await interaction.update({
+        content: "Next page clicked.",
+        components: [new ActionRowBuilder().addComponents(updatedRow)],
+      });
+    }
+  }
+});
+
+/*client.on("interactionCreate", async (interaction) => {
+  if (interaction.isButton()&&interaction.customId.startsWith("next-page")){
+    interaction.reply("Next page clicked");
+  };
+  if (interaction.isButton()&&interaction.customId.startsWith("cancel")){
+    interaction.reply("Next page clicked");
+  };
+});*/
 
 //command use logger
 client.on("interactionCreate", async (interaction) => {
-  // Check if the interaction is a command
   if (!interaction.isCommand()) return;
-
-  // Get the current date and time
   const currentDate = new Date();
-
-  // Format the date as dd/mm/yyyy HH:mm:ss
   const dateFormatOptions = {
     day: "2-digit",
     month: "2-digit",
@@ -95,11 +132,7 @@ client.on("interactionCreate", async (interaction) => {
     hour12: false,
   };
   const dateFormat = currentDate.toLocaleString("en-GB", dateFormatOptions);
-
-  // Calculate the latency of the command execution
   const timeStamp = Date.now();
-
-  // Log the command used by the user along with additional information
   console.log(
     `${interaction.user.username} ran /${interaction.commandName} command at ${dateFormat} with a latency of ${timeStamp - interaction.createdTimestamp} ms`,
   );
@@ -108,8 +141,6 @@ client.on("interactionCreate", async (interaction) => {
 // Error handler
 client.on("error", async (error) => {
   console.error("Discord client error:", error);
-
-  // Send an error message to the user if available
   if (error.interaction) {
     await error.interaction.reply({
       content: "An error occurred while processing your command.",
@@ -120,10 +151,8 @@ client.on("error", async (error) => {
 
 process.on("unhandledRejection", async (error) => {
   console.error("Unhandled promise rejection:", error);
-
-  // Send an error message to the user if available
   if (error.interaction) {
-    await error.interaction.reply({
+    await interaction.reply({
       content: "An error occurred while processing your command.",
       ephemeral: true,
     });
